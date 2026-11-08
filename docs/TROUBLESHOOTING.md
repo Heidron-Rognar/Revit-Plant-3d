@@ -84,6 +84,13 @@ restart Revit.
 You forced a work plane (`XY`) and then asked for a vertical run. Set *Work plane* back to
 **Auto** — Auto always picks a plane that contains the direction.
 
+## "Pick start point" from the pad does nothing
+
+Picking is started from inside an `ExternalEvent`, which Revit allows, but a modal state
+(options dialog, edit mode, a running command) blocks it. Close any dialog, press `Esc` in the
+canvas once, then either retry the pad button or use the ribbon's **Pick Start** button — that one
+runs in a normal command context and is always allowed.
+
 ## Nothing appears after drawing
 
 * The status bar reports every failure, read it first.

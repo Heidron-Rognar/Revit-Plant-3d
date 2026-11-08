@@ -119,6 +119,8 @@ one plane element, and **Clear all** deletes the helper planes it created.
 ## Picking
 
 * **Pick start point** — snap to geometry in the 3D view; the anchor is set exactly where you clicked.
+  The same thing is available as the ribbon's **Pick Start** button, which is the fallback if Revit
+  refuses to pick while a dialog is open.
 * **Start from selection** — anchor from the selected element's location point, curve end, or the
   centre of its bounding box.
 * **Pick end point** — free 3D drawing: pick the end point and the segment is created from the
