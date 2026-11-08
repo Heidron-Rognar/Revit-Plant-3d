@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plant Draw for Revit - add-in manifest.
+
+  The installer copies this file to:
+      %APPDATA%\Autodesk\Revit\Addins\<version>\PlantDraw.addin
+  and replaces the __ASSEMBLY__ token with the full path of PlantDraw.dll.
+
+  Manual install: replace __ASSEMBLY__ yourself, for example
+      <Assembly>C:\Users\you\AppData\Local\PlantDraw\bin\PlantDraw.dll</Assembly>
+-->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Plant Draw</Name>
+    <Assembly>__ASSEMBLY__</Assembly>
+    <AddInId>A6C2F0B4-9E3D-4C77-8A31-5B0E7C1D4F22</AddInId>
+    <FullClassName>PlantDraw.App</FullClassName>
+    <VendorId>PLDRW</VendorId>
+    <VendorDescription>Plant Draw - Plant 3D style 3D direction pad for Revit</VendorDescription>
+  </AddIn>
+</RevitAddIns>

@@ -1,0 +1,15 @@
+# Build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.addin.bak
+
+# Local install scratch
+artifacts/
+*.zip
+
+# OS noise
+.DS_Store
+Thumbs.db
