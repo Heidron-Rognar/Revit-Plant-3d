@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Plant Draw - 3D Direction Pad (browser preview)</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --line: #dde3ea;
+    --ink: #22303d;
+    --muted: #7a8693;
+    --accent: #e07b00;
+    --accent-soft: #ffc96b;
+    --x: #d64545;
+    --y: #3c9a5f;
+    --z: #2f6fd0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+  header {
+    padding: 12px 18px 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .2px; }
+  header p { margin: 0; color: var(--muted); font-size: 12px; }
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 360px minmax(320px, 1fr) minmax(320px, 1.1fr);
+    gap: 14px;
+    padding: 8px 18px 12px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) {
+    main { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .panel h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+  canvas { display: block; width: 100%; height: auto; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .row.center { justify-content: center; }
+  button {
+    font: inherit;
+    padding: 5px 10px;
+    border: 1px solid #c6cfd9;
+    background: linear-gradient(#ffffff, #f2f5f8);
+    border-radius: 5px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  button:hover { background: #f6f9fc; }
+  button:active { transform: translateY(1px); }
+  button.on { background: var(--accent-soft); border-color: #d9a63a; font-weight: 600; }
+  button.primary {
+    width: 100%;
+    padding: 11px;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--accent-soft);
+    border-color: #d9a63a;
+  }
+  button.danger.on { background: #f7d9d9; border-color: #cf9a9a; }
+  label.field { display: flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--muted); }
+  input[type=text], input[type=number], select {
+    font: inherit;
+    padding: 4px 6px;
+    border: 1px solid #c6cfd9;
+    border-radius: 4px;
+    width: 84px;
+    color: var(--ink);
+  }
+  select { width: 120px; }
+  .hint { color: var(--muted); font-size: 11.5px; margin: 10px 0 0; }
+  .reads { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+  .reads dt { color: var(--muted); margin: 0; }
+  .reads dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+  footer {
+    margin: 0 18px 14px;
+    padding: 9px 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 12.5px;
+  }
+  footer.error { border-color: #e2b3b3; color: #a32424; background: #fdf4f4; }
+  .axis-btn[data-axis="X"] { color: var(--x); }
+  .axis-btn[data-axis="Y"] { color: var(--y); }
+  .axis-btn[data-axis="Z"] { color: var(--z); }
+  .axis-btn[data-axis="X"].on, .axis-btn[data-axis="Y"].on, .axis-btn[data-axis="Z"].on {
+    background: #ecf1f7;
+    border-color: #9fb0c3;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+  }
+  .badge {
+    display: inline-block;
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 1px 8px;
+    margin-left: 6px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Plant Draw &mdash; 3D Direction Pad</h1>
+  <p>Browser mock-up of the Revit add-in panel. Same compass, same toggles, same maths &mdash; the real
+     add-in writes model lines or pipes into your Revit 3D view.</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Compass &amp; axis lock</h2>
+    <canvas id="compass" width="720" height="720" aria-label="Compass pad"></canvas>
+
+    <div class="row center">
+      <button data-act="up">Up +Z</button>
+      <button data-act="down">Down -Z</button>
+      <button data-act="flip">180&deg;</button>
+      <button data-act="level">Level</button>
+    </div>
+
+    <div class="row center" id="axis-row">
+      <span style="color:var(--muted); align-self:center">Axis lock:</span>
+      <button class="axis-btn on" data-axis="none">None</button>
+      <button class="axis-btn" data-axis="X">X</button>
+      <button class="axis-btn" data-axis="Y">Y</button>
+      <button class="axis-btn" data-axis="Z">Z</button>
+    </div>
+
+    <p class="hint">Click a ring sector for a bearing, or a coloured gizmo arm to lock onto a world axis.
+      Keys: N E S W, U / D, X Y Z, F8 for ortho, Enter to draw.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Direction</h2>
+    <div class="row">
+      <button class="on" data-frame="project">Project north</button>
+      <button data-frame="true">True north</button>
+      <button data-frame="screen">Screen</button>
+    </div>
+    <div class="row">
+      <button id="ortho">Ortho (F8)</button>
+      <button id="chain" class="on">Chain</button>
+    </div>
+    <label class="field">Bearing&deg;
+      <input type="text" id="bearing" placeholder="0-360" />
+      <button data-act="apply-bearing">Set</button>
+      <button data-act="clear-bearing">Clear</button>
+    </label>
+    <label class="field">Elevation&deg;
+      <input type="text" id="elevation" placeholder="-90..90" />
+      <button data-act="apply-elevation">Set</button>
+      <button data-act="clear-elevation">Clear</button>
+    </label>
+
+    <h2 style="margin-top:16px">Segment</h2>
+    <label class="field">Distance
+      <input type="text" id="distance" value="1000" />
+      <select id="units">
+        <option value="mm">mm</option>
+        <option value="cm">cm</option>
+        <option value="m">m</option>
+      </select>
+    </label>
+    <div class="row">
+      <button data-quick="500">500</button>
+      <button data-quick="1000">1000</button>
+      <button data-quick="2000">2000</button>
+    </div>
+    <div class="row">
+      <button class="primary" id="draw">Draw segment (Enter)</button>
+    </div>
+
+    <h2 style="margin-top:16px">Read-out</h2>
+    <dl class="reads">
+      <dt>Direction</dt><dd id="r-direction">-</dd>
+      <dt>Bearing / rise</dt><dd id="r-bearing">-</dd>
+      <dt>Delta E / N / Z</dt><dd id="r-delta">-</dd>
+      <dt>Next point</dt><dd id="r-next">-</dd>
+      <dt>Anchor</dt><dd id="r-anchor">-</dd>
+      <dt>Session</dt><dd id="r-session">0 segments</dd>
+    </dl>
+
+    <h2 style="margin-top:16px">Session</h2>
+    <div class="row">
+      <button data-act="undo">Undo last</button>
+      <button data-act="clear" class="danger">Clear all</button>
+      <button data-act="reset-anchor">Anchor to origin</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Model preview <span class="badge">isometric</span></h2>
+    <canvas id="view" width="900" height="720" aria-label="Isometric model preview"></canvas>
+    <p class="hint">What the add-in would be adding to your Revit model: each click appends one straight
+      segment from the anchor. X / Y / Z axes are drawn in world colours.</p>
+  </section>
+</main>
+
+<footer id="status">Ready. Pick a direction, type a distance and press Enter.</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // ------------------------------------------------------------------ state
+
+  var state = {
+    dir: "N",
+    frame: "project",
+    axisLock: "none",
+    axisSign: 1,
+    ortho: false,
+    bearingOverride: null,
+    elevationOverride: null,
+    chain: true,
+    units: "mm",
+    trueNorthDeg: 20,
+    flipNorth: false,
+    anchor: { x: 0, y: 0, z: 0 },
+    segments: [],
+    total: 0
+  };
+
+  var AXES = { X: { x: 1, y: 0, z: 0 }, Y: { x: 0, y: 1, z: 0 }, Z: { x: 0, y: 0, z: 1 } };
+  var RING = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  var RING_BEARING = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, W: 270, NW: 315 };
+
+  var ISO_X = { x: 0.8660254, y: 0.5 };
+  var ISO_Y = { x: -0.8660254, y: 0.5 };
+  var ISO_Z = { x: 0.0, y: -1.0 };
+
+  // ------------------------------------------------------------------ maths
+
+  function vec(x, y, z) { return { x: x, y: y, z: z }; }
+  function add(a, b) { return vec(a.x + b.x, a.y + b.y, a.z + b.z); }
+  function sub(a, b) { return vec(a.x - b.x, a.y - b.y, a.z - b.z); }
+  function mul(a, s) { return vec(a.x * s, a.y * s, a.z * s); }
+  function dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+  function len(a) { return Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z); }
+  function unit(a) {
+    var l = len(a);
+    return l < 1e-12 ? vec(0, 0, 0) : vec(a.x / l, a.y / l, a.z / l);
+  }
+  function norm360(deg) { var d = deg % 360; return d < 0 ? d + 360 : d; }
+  function rad(deg) { return deg * Math.PI / 180; }
+  function deg(r) { return r * 180 / Math.PI; }
+
+  function frameBasis(frame) {
+    if (frame === "true") {
+      var a = rad(state.flipNorth ? -state.trueNorthDeg : state.trueNorthDeg);
+      return {
+        east: vec(Math.cos(a), Math.sin(a), 0),
+        north: vec(-Math.sin(a), Math.cos(a), 0),
+        label: "true north (" + state.trueNorthDeg.toFixed(0) + " deg)"
+      };
+    }
+    if (frame === "screen") {
+      return { east: vec(1, 0, 0), north: vec(0, 1, 0), label: "screen (up = north)" };
+    }
+    return { east: vec(1, 0, 0), north: vec(0, 1, 0), label: "project north" };
+  }
+
+  function resolveDirection() {
+    var basis = frameBasis(state.frame);
+    var explicitlyVertical = state.dir === "Up" || state.dir === "Down";
+    var hasBearing = state.bearingOverride !== null;
+
+    var bearing;
+    if (hasBearing) {
+      bearing = state.bearingOverride;
+    } else if (RING_BEARING.hasOwnProperty(state.dir)) {
+      bearing = RING_BEARING[state.dir];
+    } else if (explicitlyVertical) {
+      bearing = 0;
+    } else if (state.axisLock === "none") {
+      return { valid: false, note: "Pick a compass direction, a bearing, or an axis lock." };
+    } else {
+      bearing = 0;
+    }
+
+    var elevation = 0;
+    if (state.dir === "Up") { elevation = 90; }
+    else if (state.dir === "Down") { elevation = -90; }
+    else if (state.elevationOverride !== null) { elevation = state.elevationOverride; }
+
+    var note = "";
+
+    if (state.ortho) {
+      var snapped = Math.round(bearing / 90) * 90;
+      if (!explicitlyVertical && Math.abs(snapped - bearing) > 1e-6) {
+        note = "Ortho snapped " + bearing.toFixed(0) + " deg to " + norm360(snapped).toFixed(0) + " deg";
+      }
+      bearing = snapped;
+      elevation = Math.round(elevation / 90) * 90;
+    }
+
+    bearing = norm360(bearing);
+
+    var b = rad(bearing);
+    var e = rad(elevation);
+    var horizontal = Math.cos(e);
+    var v = unit(add(
+      add(mul(basis.east, Math.sin(b) * horizontal), mul(basis.north, Math.cos(b) * horizontal)),
+      vec(0, 0, Math.sin(e))
+    ));
+
+    var axisLabel = null;
+    if (state.axisLock !== "none") {
+      var axis = AXES[state.axisLock];
+      var component = dot(v, axis);
+      var sign = Math.abs(component) < 1e-9 ? (state.axisSign < 0 ? -1 : 1) : Math.sign(component);
+      v = mul(axis, sign);
+      axisLabel = (sign > 0 ? "+" : "-") + state.axisLock;
+      note = "Locked to " + axisLabel + " (world axis)";
+    }
+
+    v = unit(v);
+    if (len(v) < 1e-9) {
+      return { valid: false, note: "The toggles cancel each other out." };
+    }
+
+    var eastComp = dot(v, basis.east);
+    var northComp = dot(v, basis.north);
+    var upComp = v.z;
+    var actualBearing = norm360(deg(Math.atan2(eastComp, northComp)));
+    var actualElevation = deg(Math.asin(Math.max(-1, Math.min(1, upComp))));
+
+    return {
+      valid: true,
+      vector: v,
+      east: eastComp,
+      north: northComp,
+      up: upComp,
+      bearing: actualBearing,
+      elevation: actualElevation,
+      label: axisLabel ? ("Locked " + axisLabel) : describe(eastComp, northComp, upComp, actualElevation, state.frame === "project"),
+      note: note
+    };
+  }
+
+  function describe(e, n, u, elevation, worldFrame) {
+    if (Math.abs(u) > 0.9999) {
+      return u > 0 ? (worldFrame ? "Up (+Z)" : "Up") : (worldFrame ? "Down (-Z)" : "Down");
+    }
+
+    var planar;
+    var aE = Math.abs(e);
+    var aN = Math.abs(n);
+
+    if (aE < 1e-4) {
+      planar = n > 0 ? (worldFrame ? "North (+Y)" : "North") : (worldFrame ? "South (-Y)" : "South");
+    } else if (aN < 1e-4) {
+      planar = e > 0 ? (worldFrame ? "East (+X)" : "East") : (worldFrame ? "West (-X)" : "West");
+    } else {
+      planar = (n > 0 ? "N " : "S ") + deg(Math.atan2(aE, aN)).toFixed(1) + " deg " + (e > 0 ? "E" : "W");
+    }
+
+    if (Math.abs(elevation) > 0.05) {
+      planar += ", " + Math.abs(elevation).toFixed(1) + " deg " + (elevation > 0 ? "up" : "down");
+    }
+
+    return planar;
+  }
+
+  // ------------------------------------------------------------------ units
+
+  function parseDistance(text) {
+    var t = String(text || "").trim().replace(",", ".");
+    if (!t) { return null; }
+    var match = t.match(/^([-+]?\d*\.?\d+)\s*(mm|cm|m)?$/i);
+    if (!match) { return null; }
+    var value = parseFloat(match[1]);
+    var unit = (match[2] || state.units).toLowerCase();
+    if (unit === "mm") { return value / 1000; }
+    if (unit === "cm") { return value / 100; }
+    return value;
+  }
+
+  function formatLength(metres) {
+    if (state.units === "mm") { return (metres * 1000).toFixed(1) + " mm"; }
+    if (state.units === "cm") { return (metres * 100).toFixed(2) + " cm"; }
+    return metres.toFixed(3) + " m";
+  }
+
+  function formatNumber(metres) {
+    if (state.units === "mm") { return (metres * 1000).toFixed(0); }
+    if (state.units === "cm") { return (metres * 100).toFixed(1); }
+    return metres.toFixed(3);
+  }
+
+  function formatPoint(p) {
+    return "E " + formatNumber(p.x) + "  N " + formatNumber(p.y) + "  Z " + formatNumber(p.z);
+  }
+
+  // ------------------------------------------------------------------ status + read-outs
+
+  var statusEl = document.getElementById("status");
+
+  function setStatus(message, isError) {
+    statusEl.textContent = message;
+    statusEl.className = isError ? "error" : "";
+  }
+
+  function updateReadouts() {
+    var resolved = resolveDirection();
+    var distance = parseDistance(document.getElementById("distance").value);
+
+    document.getElementById("r-direction").textContent = resolved.valid ? resolved.label : "-";
+    document.getElementById("r-bearing").textContent = resolved.valid
+      ? resolved.bearing.toFixed(1) + " deg  /  " + (resolved.elevation >= 0 ? "+" : "") + resolved.elevation.toFixed(1) + " deg"
+      : "-";
+
+    if (resolved.valid && distance && distance > 0) {
+      var delta = mul(resolved.vector, distance);
+      document.getElementById("r-delta").textContent =
+        "E " + formatNumber(delta.x) + "  N " + formatNumber(delta.y) + "  Z " + formatNumber(delta.z) + " " + state.units;
+      document.getElementById("r-next").textContent = formatPoint(add(state.anchor, delta));
+    } else {
+      document.getElementById("r-delta").textContent = "-";
+      document.getElementById("r-next").textContent = resolved.valid ? "check the distance" : "no direction";
+    }
+
+    document.getElementById("r-anchor").textContent = formatPoint(state.anchor);
+    document.getElementById("r-session").textContent =
+      state.segments.length + " segment(s), " + formatLength(state.total);
+
+    return resolved;
+  }
+
+  // ------------------------------------------------------------------ compass drawing
+
+  var compassCanvas = document.getElementById("compass");
+  var compassCtx = compassCanvas.getContext("2d");
+
+  function pointOn(cx, cy, radius, bearingDeg) {
+    var theta = rad(bearingDeg - 90);
+    return { x: cx + radius * Math.cos(theta), y: cy + radius * Math.sin(theta) };
+  }
+
+  function projectIso(east, north, up) {
+    return {
+      x: east * ISO_X.x + north * ISO_Y.x + up * ISO_Z.x,
+      y: east * ISO_X.y + north * ISO_Y.y + up * ISO_Z.y
+    };
+  }
+
+  function drawCompass() {
+    var w = compassCanvas.width;
+    var h = compassCanvas.height;
+    var cx = w / 2;
+    var cy = h / 2;
+    var outer = Math.min(w, h) / 2 - 14;
+    var inner = outer * 0.63;
+    var ctx = compassCtx;
+    var resolved = resolveDirection();
+
+    ctx.clearRect(0, 0, w, h);
+
+    var disc = ctx.createLinearGradient(0, 0, 0, h);
+    disc.addColorStop(0, "#fbfcfd");
+    disc.addColorStop(1, "#e6ebf1");
+    ctx.fillStyle = disc;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outer, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (var i = 0; i < RING.length; i++) {
+      var start = i * 45 - 22.5;
+      var end = i * 45 + 22.5;
+      var active = state.dir === RING[i] || (state.bearingOverride !== null && RING[i] === nearestSector(state.bearingOverride));
+      var hover = hoverSector === i;
+
+      ctx.beginPath();
+      for (var a = start; a <= end; a += 2) {
+        var p = pointOn(cx, cy, outer - 3, a);
+        if (a === start) { ctx.moveTo(p.x, p.y); } else { ctx.lineTo(p.x, p.y); }
+      }
+      for (var b = end; b >= start; b -= 2) {
+        var q = pointOn(cx, cy, inner + 4, b);
+        ctx.lineTo(q.x, q.y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = active ? "#ffc96b" : (hover ? "#ffeec9" : "#f3f6f9");
+      ctx.fill();
+      ctx.strokeStyle = "#d5dde5";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      var labelPoint = pointOn(cx, cy, (inner + outer) / 2, i * 45);
+      ctx.fillStyle = active ? "#5b3a00" : "#394552";
+      ctx.font = (active || i % 2 === 0 ? "600 " : "400 ") + Math.round(outer * 0.10) + "px Segoe UI, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(RING[i], labelPoint.x, labelPoint.y);
+    }
+
+    ctx.strokeStyle = "#b9c3ce";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outer, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, inner, 0, Math.PI * 2);
+    ctx.stroke();
+
+    drawGizmo(ctx, cx, cy, inner, resolved);
+    drawArrow(ctx, cx, cy, inner, resolved);
+  }
+
+  var hoverSector = -1;
+  var hoverAxis = null;
+
+  function nearestSector(bearing) {
+    return RING[Math.round(norm360(bearing) / 45) % 8];
+  }
+
+  function drawGizmo(ctx, cx, cy, inner, resolved) {
+    var length = inner * 0.82;
+    var fontSize = Math.max(13, Math.round(inner * 0.17));
+
+    drawArm(ctx, cx, cy, ISO_X, length, "X", "#d64545", state.axisLock === "X", hoverAxis === "X", fontSize);
+    drawArm(ctx, cx, cy, ISO_Y, length, "Y", "#3c9a5f", state.axisLock === "Y", hoverAxis === "Y", fontSize);
+    drawArm(ctx, cx, cy, ISO_Z, length, "Z", "#2f6fd0", state.axisLock === "Z", hoverAxis === "Z", fontSize);
+
+    ctx.beginPath();
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#b9c3ce";
+    ctx.lineWidth = 1.5;
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function drawArm(ctx, cx, cy, dir, length, label, colour, locked, hovered, fontSize) {
+    ctx.strokeStyle = locked ? "#222a33" : colour;
+    ctx.lineWidth = locked ? 6 : (hovered ? 5 : 3);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cx - dir.x * length * 0.55, cy - dir.y * length * 0.55);
+    ctx.lineTo(cx + dir.x * length, cy + dir.y * length);
+    ctx.stroke();
+
+    ctx.fillStyle = locked ? "#222a33" : colour;
+    ctx.font = "600 " + fontSize + "px Segoe UI, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, cx + dir.x * length * 1.18, cy + dir.y * length * 1.18);
+  }
+
+  function drawArrow(ctx, cx, cy, inner, resolved) {
+    if (!resolved.valid) { return; }
+    var projected = projectIso(resolved.east, resolved.north, resolved.up);
+    var magnitude = Math.sqrt(projected.x * projected.x + projected.y * projected.y);
+    if (magnitude < 1e-6) { return; }
+
+    var scale = (inner * 0.95) / magnitude;
+    var tipX = cx + projected.x * scale;
+    var tipY = cy + projected.y * scale;
+
+    ctx.strokeStyle = "rgba(224,123,0,0.25)";
+    ctx.lineWidth = 12;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#e07b00";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+
+    ctx.fillStyle = "#e07b00";
+    ctx.beginPath();
+    ctx.arc(tipX, tipY, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function compassHit(event) {
+    var rect = compassCanvas.getBoundingClientRect();
+    var scaleX = compassCanvas.width / rect.width;
+    var scaleY = compassCanvas.height / rect.height;
+    var x = (event.clientX - rect.left) * scaleX;
+    var y = (event.clientY - rect.top) * scaleY;
+
+    var cx = compassCanvas.width / 2;
+    var cy = compassCanvas.height / 2;
+    var outer = Math.min(compassCanvas.width, compassCanvas.height) / 2 - 14;
+    var inner = outer * 0.63;
+
+    // axis arms first
+    var length = inner * 0.82;
+    var axes = [["X", ISO_X], ["Y", ISO_Y], ["Z", ISO_Z]];
+    var best = null;
+    var bestDistance = 16;
+    for (var i = 0; i < axes.length; i++) {
+      var d = axes[i][1];
+      var dx = x - cx;
+      var dy = y - cy;
+      var along = dx * d.x + dy * d.y;
+      if (along < 4 || along > length * 1.25) { continue; }
+      var perp = Math.abs(dx * d.y - dy * d.x);
+      if (perp < bestDistance) { bestDistance = perp; best = axes[i][0]; }
+    }
+    if (best) { return { kind: "axis", axis: best }; }
+
+    var dx2 = x - cx;
+    var dy2 = y - cy;
+    var distance = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+    if (distance >= inner - 2 && distance <= outer + 6) {
+      var bearing = deg(Math.atan2(dx2, -dy2));
+      if (bearing < 0) { bearing += 360; }
+      var index = Math.round(bearing / 45) % 8;
+      return { kind: "sector", index: index, direction: RING[index] };
+    }
+
+    return { kind: "none" };
+  }
+
+  compassCanvas.addEventListener("mousemove", function (event) {
+    var hit = compassHit(event);
+    var newSector = hit.kind === "sector" ? hit.index : -1;
+    var newAxis = hit.kind === "axis" ? hit.axis : null;
+    if (newSector !== hoverSector || newAxis !== hoverAxis) {
+      hoverSector = newSector;
+      hoverAxis = newAxis;
+      compassCanvas.style.cursor = hit.kind === "none" ? "default" : "pointer";
+      render();
+    }
+  });
+
+  compassCanvas.addEventListener("mouseleave", function () {
+    hoverSector = -1;
+    hoverAxis = null;
+    render();
+  });
+
+  compassCanvas.addEventListener("click", function (event) {
+    var hit = compassHit(event);
+    if (hit.kind === "axis") {
+      setAxisLock(state.axisLock === hit.axis ? "none" : hit.axis);
+      return;
+    }
+    if (hit.kind === "sector") {
+      state.dir = hit.direction;
+      state.bearingOverride = null;
+      document.getElementById("bearing").value = "";
+      refresh();
+    }
+  });
+
+  // ------------------------------------------------------------------ model preview
+
+  var viewCanvas = document.getElementById("view");
+  var viewCtx = viewCanvas.getContext("2d");
+
+  function drawView() {
+    var w = viewCanvas.width;
+    var h = viewCanvas.height;
+    var ctx = viewCtx;
+    ctx.clearRect(0, 0, w, h);
+
+    var background = ctx.createLinearGradient(0, 0, 0, h);
+    background.addColorStop(0, "#fbfcfd");
+    background.addColorStop(1, "#eef2f6");
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, w, h);
+
+    // Everything that must stay in frame: anchor, segments and the world axes.
+    var points = [state.anchor, vec(0, 0, 0), vec(1, 0, 0), vec(0, 1, 0), vec(0, 0, 1)];
+    state.segments.forEach(function (segment) { points.push(segment.a, segment.b); });
+
+    var minIsoX = Infinity, maxIsoX = -Infinity, minIsoY = Infinity, maxIsoY = -Infinity;
+    points.forEach(function (p) {
+      var iso = projectIso(p.x, p.y, p.z);
+      minIsoX = Math.min(minIsoX, iso.x);
+      maxIsoX = Math.max(maxIsoX, iso.x);
+      minIsoY = Math.min(minIsoY, iso.y);
+      maxIsoY = Math.max(maxIsoY, iso.y);
+    });
+
+    var spanX = Math.max(1.2, maxIsoX - minIsoX);
+    var spanY = Math.max(1.2, maxIsoY - minIsoY);
+    var padding = 54;
+    var scale = Math.min((w - padding * 2) / spanX, (h - padding * 2) / spanY);
+    var midIsoX = (minIsoX + maxIsoX) / 2;
+    var midIsoY = (minIsoY + maxIsoY) / 2;
+
+    function project(p) {
+      var iso = projectIso(p.x, p.y, p.z);
+      return {
+        x: (iso.x - midIsoX) * scale + (w / 2),
+        y: (iso.y - midIsoY) * scale + (h / 2)
+      };
+    }
+
+    // Ground grid on the XY plane at the anchor elevation.
+    var worldX = points.map(function (p) { return p.x; });
+    var worldY = points.map(function (p) { return p.y; });
+    var minWorldX = Math.min.apply(null, worldX);
+    var maxWorldX = Math.max.apply(null, worldX);
+    var minWorldY = Math.min.apply(null, worldY);
+    var maxWorldY = Math.max.apply(null, worldY);
+    var gridStep = niceStep(Math.max(0.5, Math.max(maxWorldX - minWorldX, maxWorldY - minWorldY)) / 8);
+    var gridZ = state.anchor.z;
+
+    var gx0 = Math.floor((minWorldX - gridStep * 2) / gridStep) * gridStep;
+    var gx1 = maxWorldX + gridStep * 2;
+    var gy0 = Math.floor((minWorldY - gridStep * 2) / gridStep) * gridStep;
+    var gy1 = maxWorldY + gridStep * 2;
+
+    ctx.strokeStyle = "rgba(120,140,160,0.18)";
+    ctx.lineWidth = 1;
+
+    for (var gx = gx0; gx <= gx1; gx += gridStep) {
+      var a = project(vec(gx, gy0, gridZ));
+      var b = project(vec(gx, gy1, gridZ));
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+
+    for (var gy = gy0; gy <= gy1; gy += gridStep) {
+      var c = project(vec(gx0, gy, gridZ));
+      var d = project(vec(gx1, gy, gridZ));
+      ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+    }
+
+    // World axes through the origin.
+    drawWorldAxis(ctx, project, vec(1, 0, 0), "#d64545", "X");
+    drawWorldAxis(ctx, project, vec(0, 1, 0), "#3c9a5f", "Y");
+    drawWorldAxis(ctx, project, vec(0, 0, 1), "#2f6fd0", "Z");
+
+    // Committed segments.
+    state.segments.forEach(function (segment, index) {
+      var pa = project(segment.a);
+      var pb = project(segment.b);
+
+      ctx.strokeStyle = "#2b3d4f";
+      ctx.lineWidth = 6;
+      ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+
+      ctx.strokeStyle = "#ffc96b";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+
+      ctx.fillStyle = "#4a5a6a";
+      ctx.font = "600 15px Segoe UI, system-ui, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(String(index + 1), ((pa.x + pb.x) / 2) + 9, ((pa.y + pb.y) / 2) - 9);
+    });
+
+    // Pending segment preview.
+    var resolved = resolveDirection();
+    var distance = parseDistance(document.getElementById("distance").value);
+    if (resolved.valid && distance && distance > 0) {
+      var end = add(state.anchor, mul(resolved.vector, distance));
+      var from = project(state.anchor);
+      var to = project(end);
+      ctx.strokeStyle = "rgba(224,123,0,0.85)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 7]);
+      ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Anchor marker.
+    var anchorPoint = project(state.anchor);
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#e07b00";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(anchorPoint.x, anchorPoint.y, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#7a8693";
+    ctx.font = "14px Segoe UI, system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("grid " + formatLength(gridStep), 16, h - 16);
+  }
+
+  function drawWorldAxis(ctx, project, direction, colour, label) {
+    var a = project(vec(0, 0, 0));
+    var b = project(mul(unit(direction), 1));
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    ctx.fillStyle = colour;
+    ctx.font = "600 16px Segoe UI, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(label, b.x + 13, b.y - 5);
+  }
+
+  function niceStep(raw) {
+    if (!isFinite(raw) || raw <= 0) { return 1; }
+    var exponent = Math.floor(Math.log(raw) / Math.LN10);
+    var fraction = raw / Math.pow(10, exponent);
+    var nice = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+    return nice * Math.pow(10, exponent);
+  }
+
+  // ------------------------------------------------------------------ interactions
+
+  function refresh() {
+    updateReadouts();
+    drawCompass();
+    drawView();
+    syncButtons();
+  }
+
+  function syncButtons() {
+    document.querySelectorAll("[data-frame]").forEach(function (button) {
+      button.classList.toggle("on", button.getAttribute("data-frame") === state.frame);
+    });
+
+    document.querySelectorAll("[data-axis]").forEach(function (button) {
+      var axis = button.getAttribute("data-axis");
+      button.classList.toggle("on", axis === state.axisLock);
+    });
+
+    document.getElementById("ortho").classList.toggle("on", state.ortho);
+    document.getElementById("chain").classList.toggle("on", state.chain);
+  }
+
+  function setAxisLock(axis) {
+    state.axisLock = axis;
+    if (axis === "none") { state.axisSign = 1; }
+    refresh();
+  }
+
+  document.querySelectorAll("[data-frame]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      state.frame = button.getAttribute("data-frame");
+      refresh();
+    });
+  });
+
+  document.querySelectorAll("[data-axis]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      setAxisLock(button.getAttribute("data-axis"));
+    });
+  });
+
+  document.querySelectorAll("[data-quick]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      document.getElementById("distance").value = button.getAttribute("data-quick");
+      refresh();
+    });
+  });
+
+  document.getElementById("ortho").addEventListener("click", function () {
+    state.ortho = !state.ortho;
+    refresh();
+  });
+
+  document.getElementById("chain").addEventListener("click", function () {
+    state.chain = !state.chain;
+    refresh();
+  });
+
+  document.querySelectorAll("[data-act]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var action = button.getAttribute("data-act");
+      switch (action) {
+        case "up":
+          state.dir = "Up";
+          state.bearingOverride = null;
+          document.getElementById("bearing").value = "";
+          refresh();
+          break;
+        case "down":
+          state.dir = "Down";
+          state.bearingOverride = null;
+          document.getElementById("bearing").value = "";
+          refresh();
+          break;
+        case "flip": {
+          var resolved = resolveDirection();
+          var current = resolved.valid ? resolved.bearing : 0;
+          state.bearingOverride = norm360(current + 180);
+          state.dir = "None";
+          state.axisSign = -state.axisSign;
+          document.getElementById("bearing").value = state.bearingOverride.toFixed(1);
+          refresh();
+          break;
+        }
+        case "level":
+          state.elevationOverride = 0;
+          document.getElementById("elevation").value = "0";
+          if (state.dir === "Up" || state.dir === "Down") { state.dir = "N"; }
+          refresh();
+          break;
+        case "apply-bearing": {
+          var value = parseFloat(document.getElementById("bearing").value);
+          if (isNaN(value)) { setStatus("Type a bearing in degrees, for example 45.", true); return; }
+          state.bearingOverride = norm360(value);
+          state.dir = "None";
+          state.ortho = false;
+          setStatus("Bearing set to " + state.bearingOverride.toFixed(1) + " deg (ortho switched off so the angle is exact).", false);
+          refresh();
+          break;
+        }
+        case "clear-bearing":
+          state.bearingOverride = null;
+          document.getElementById("bearing").value = "";
+          if (state.dir === "None") { state.dir = "N"; }
+          refresh();
+          break;
+        case "apply-elevation": {
+          var elevation = parseFloat(document.getElementById("elevation").value);
+          if (isNaN(elevation)) { setStatus("Type an elevation angle in degrees, for example 30.", true); return; }
+          state.elevationOverride = Math.max(-90, Math.min(90, elevation));
+          state.ortho = false;
+          if (state.dir === "Up" || state.dir === "Down") { state.dir = "N"; }
+          refresh();
+          break;
+        }
+        case "clear-elevation":
+          state.elevationOverride = null;
+          document.getElementById("elevation").value = "";
+          refresh();
+          break;
+        case "undo":
+          if (!state.segments.length) { setStatus("Nothing to undo yet.", false); return; }
+          var removed = state.segments.pop();
+          state.total = Math.max(0, state.total - removed.length);
+          state.anchor = removed.a;
+          setStatus("Removed the last segment.", false);
+          refresh();
+          break;
+        case "clear":
+          state.segments = [];
+          state.total = 0;
+          state.anchor = vec(0, 0, 0);
+          setStatus("Cleared all segments.", false);
+          refresh();
+          break;
+        case "reset-anchor":
+          state.anchor = vec(0, 0, 0);
+          refresh();
+          break;
+      }
+    });
+  });
+
+  document.getElementById("units").addEventListener("change", function (event) {
+    state.units = event.target.value;
+    refresh();
+  });
+
+  document.getElementById("distance").addEventListener("input", function () { refresh(); });
+
+  document.getElementById("draw").addEventListener("click", drawSegment);
+
+  function drawSegment() {
+    var resolved = resolveDirection();
+    if (!resolved.valid) {
+      setStatus(resolved.note || "Pick a direction first.", true);
+      refresh();
+      return;
+    }
+
+    var distance = parseDistance(document.getElementById("distance").value);
+    if (!distance || distance <= 0) {
+      setStatus("Enter a positive distance.", true);
+      return;
+    }
+
+    var start = state.anchor;
+    var end = add(start, mul(resolved.vector, distance));
+
+    state.segments.push({ a: start, b: end, length: distance });
+    state.total += distance;
+    state.anchor = state.chain ? end : start;
+
+    setStatus(
+      "Segment drawn: " + formatPoint(start) + "  ->  " + formatPoint(end) +
+      "   (" + formatLength(distance) + ", " + resolved.label +
+      ", bearing " + resolved.bearing.toFixed(1) + " deg, rise " + resolved.elevation.toFixed(1) + " deg)",
+      false);
+
+    if (resolved.note) { statusEl.textContent += "  [" + resolved.note + "]"; }
+    refresh();
+  }
+
+  var KEY_DIRECTIONS = { n: "N", e: "E", s: "S", w: "W", u: "Up", d: "Down" };
+
+  window.addEventListener("keydown", function (event) {
+    var tag = (event.target && event.target.tagName) || "";
+    if (tag === "INPUT" || tag === "SELECT") {
+      if (event.key === "Enter") { drawSegment(); event.preventDefault(); }
+      return;
+    }
+
+    var key = event.key.toLowerCase();
+    if (KEY_DIRECTIONS[key]) {
+      state.dir = KEY_DIRECTIONS[key];
+      state.bearingOverride = null;
+      document.getElementById("bearing").value = "";
+      refresh();
+      event.preventDefault();
+      return;
+    }
+
+    if (key === "x" || key === "y" || key === "z") {
+      var axis = key.toUpperCase();
+      setAxisLock(state.axisLock === axis ? "none" : axis);
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === "F8") {
+      state.ortho = !state.ortho;
+      setStatus(state.ortho ? "Ortho on." : "Ortho off.", false);
+      refresh();
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      drawSegment();
+      event.preventDefault();
+    }
+  });
+
+  // ------------------------------------------------------------------ boot
+
+  function render() {
+    drawCompass();
+    drawView();
+  }
+
+  refresh();
+  setStatus("Ready. Pick a direction, type a distance and press Enter.", false);
+})();
+</script>
+</body>
+</html>

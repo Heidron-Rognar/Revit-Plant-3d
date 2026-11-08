@@ -1,0 +1,231 @@
+<Window x:Class="PlantDraw.UI.DirectionPadWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:PlantDraw.UI"
+        Title="Plant Draw - 3D Direction Pad"
+        Height="640" Width="960" MinHeight="560" MinWidth="880"
+        WindowStartupLocation="Manual" ShowInTaskbar="False"
+        FontFamily="Segoe UI" FontSize="12" Background="#F5F6F8"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+        <Style x:Key="SmallButton" TargetType="Button">
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Padding" Value="10,3" />
+            <Setter Property="MinWidth" Value="46" />
+        </Style>
+        <Style x:Key="SectionLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#5A6672" />
+            <Setter Property="Margin" Value="0,10,0,4" />
+        </Style>
+        <Style x:Key="ReadoutLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#7A8693" />
+            <Setter Property="Margin" Value="0,2,12,2" />
+        </Style>
+        <Style x:Key="ReadoutValue" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#22303D" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,2,0,2" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="Padding" Value="10,4" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="348" />
+            <ColumnDefinition Width="14" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- LEFT: compass -->
+        <GroupBox Grid.Row="0" Grid.Column="0" Header="Compass &amp; axis lock" Padding="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <ui:CompassPad x:Name="Compass" Grid.Row="0" MinHeight="250" MinWidth="250" />
+
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                    <Button x:Name="BtnUp" Content="Up +Z" Click="OnUpClick" Style="{StaticResource SmallButton}" />
+                    <Button x:Name="BtnDown" Content="Down -Z" Click="OnDownClick" Style="{StaticResource SmallButton}" />
+                    <Button x:Name="BtnFlip" Content="180" Click="OnFlipClick" Style="{StaticResource SmallButton}" />
+                    <Button x:Name="BtnLevel" Content="Level" Click="OnLevelClick" Style="{StaticResource SmallButton}" />
+                </StackPanel>
+
+                <WrapPanel Grid.Row="2" Margin="0,10,0,0" HorizontalAlignment="Center">
+                    <TextBlock Text="Axis lock:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#5A6672" />
+                    <RadioButton x:Name="RbLockNone" Content="None" GroupName="Axis" IsChecked="True" Margin="0,0,10,0" Checked="OnAxisLockChecked" />
+                    <RadioButton x:Name="RbLockX" Content="X" GroupName="Axis" Margin="0,0,10,0" Checked="OnAxisLockChecked" />
+                    <RadioButton x:Name="RbLockY" Content="Y" GroupName="Axis" Margin="0,0,10,0" Checked="OnAxisLockChecked" />
+                    <RadioButton x:Name="RbLockZ" Content="Z" GroupName="Axis" Checked="OnAxisLockChecked" />
+                </WrapPanel>
+
+                <TextBlock x:Name="TxtCompassHint" Grid.Row="3" Margin="0,10,0,0" TextWrapping="Wrap" FontSize="11"
+                           Foreground="#7A8693"
+                           Text="Click a ring sector to pick a bearing, or a gizmo arm to lock to a world axis. Keys: N E S W, U / D for up and down, X Y Z for axis locks, F8 for ortho, Enter to draw." />
+            </Grid>
+        </GroupBox>
+
+        <!-- RIGHT: controls -->
+        <ScrollViewer Grid.Row="0" Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+
+                <GroupBox Header="Direction" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="Compass frame" Style="{StaticResource SectionLabel}" Margin="0,0,0,4" />
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="RbFrameProject" Content="Project north" IsChecked="True" Margin="0,0,14,0" Checked="OnFrameChecked" />
+                            <RadioButton x:Name="RbFrameTrue" Content="True north" Margin="0,0,14,0" Checked="OnFrameChecked" />
+                            <RadioButton x:Name="RbFrameView" Content="Screen" Checked="OnFrameChecked" />
+                        </StackPanel>
+
+                        <CheckBox x:Name="ChkOrtho" Content="Ortho - constrain to 90 deg steps (F8)" Margin="0,12,0,0"
+                                  Checked="OnOrthoChanged" Unchecked="OnOrthoChanged" />
+
+                        <WrapPanel Margin="0,10,0,0">
+                            <TextBlock Text="Bearing" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#5A6672" />
+                            <TextBox x:Name="TxtBearing" Width="74" VerticalContentAlignment="Center" KeyDown="OnBearingKeyDown" />
+                            <Button Content="Set" Click="OnApplyBearingClick" Margin="6,0,0,0" Padding="10,2" />
+                            <Button Content="Clear" Click="OnClearBearingClick" Margin="6,0,0,0" Padding="10,2" />
+                        </WrapPanel>
+
+                        <WrapPanel Margin="0,8,0,0">
+                            <TextBlock Text="Elevation" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#5A6672" />
+                            <TextBox x:Name="TxtElevation" Width="74" VerticalContentAlignment="Center" KeyDown="OnElevationKeyDown" />
+                            <Button Content="Set" Click="OnApplyElevationClick" Margin="6,0,0,0" Padding="10,2" />
+                            <Button Content="Clear" Click="OnClearElevationClick" Margin="6,0,0,0" Padding="10,2" />
+                        </WrapPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Segment" Padding="10" Margin="0,10,0,0">
+                    <StackPanel>
+                        <WrapPanel>
+                            <TextBlock Text="Distance" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#5A6672" />
+                            <TextBox x:Name="TxtDistance" Width="92" VerticalContentAlignment="Center" KeyDown="OnDistanceKeyDown" />
+                            <TextBlock x:Name="TxtUnit" Text="mm" VerticalAlignment="Center" Margin="6,0,12,0" Foreground="#5A6672" />
+                            <Button x:Name="BtnQuick1" Content="500" Click="OnQuickClick" Margin="0,0,6,0" Padding="8,2" />
+                            <Button x:Name="BtnQuick2" Content="1000" Click="OnQuickClick" Margin="0,0,6,0" Padding="8,2" />
+                            <Button x:Name="BtnQuick3" Content="2000" Click="OnQuickClick" Padding="8,2" />
+                        </WrapPanel>
+
+                        <CheckBox x:Name="ChkChain" Content="Chain - continue from the end point" Margin="0,12,0,0"
+                                  Checked="OnChainChanged" Unchecked="OnChainChanged" />
+
+                        <TextBlock Text="Draw as" Style="{StaticResource SectionLabel}" />
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="RbModelLine" Content="Model line" IsChecked="True" Margin="0,0,14,0" Checked="OnModeChecked" />
+                            <RadioButton x:Name="RbPipe" Content="Pipe" Checked="OnModeChecked" />
+                        </StackPanel>
+
+                        <WrapPanel Margin="0,12,0,0">
+                            <TextBlock Text="Work plane" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#5A6672" />
+                            <ComboBox x:Name="CmbPlane" Width="130" SelectionChanged="OnPlaneChanged">
+                                <ComboBoxItem Content="Auto" />
+                                <ComboBoxItem Content="XY (horizontal)" />
+                                <ComboBoxItem Content="XZ" />
+                                <ComboBoxItem Content="YZ" />
+                            </ComboBox>
+                            <CheckBox x:Name="ChkPinPlane" Content="Set view work plane" Margin="12,0,0,0" VerticalAlignment="Center"
+                                      Checked="OnPinPlaneChanged" Unchecked="OnPinPlaneChanged" />
+                        </WrapPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Read-out" Padding="10" Margin="0,10,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Direction" Style="{StaticResource ReadoutLabel}" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TxtDirection" Text="-" Style="{StaticResource ReadoutValue}" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Bearing / rise" Style="{StaticResource ReadoutLabel}" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TxtBearingValue" Text="-" Style="{StaticResource ReadoutValue}" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Delta E / N / Z" Style="{StaticResource ReadoutLabel}" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TxtDelta" Text="-" Style="{StaticResource ReadoutValue}" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Next point" Style="{StaticResource ReadoutLabel}" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" x:Name="TxtNext" Text="-" Style="{StaticResource ReadoutValue}" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Anchor" Style="{StaticResource ReadoutLabel}" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" x:Name="TxtAnchor" Text="(not set)" Style="{StaticResource ReadoutValue}" />
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Session" Style="{StaticResource ReadoutLabel}" />
+                        <TextBlock Grid.Row="5" Grid.Column="1" x:Name="TxtTotal" Text="0 segments" Style="{StaticResource ReadoutValue}" />
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Active view" Style="{StaticResource ReadoutLabel}" />
+                        <TextBlock Grid.Row="6" Grid.Column="1" x:Name="TxtView" Text="-" Style="{StaticResource ReadoutValue}" />
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox Header="Session" Padding="10" Margin="0,10,0,0">
+                    <StackPanel>
+                        <WrapPanel>
+                            <Button x:Name="BtnPickStart" Content="Pick start point" Click="OnPickStartClick" Style="{StaticResource ActionButton}" />
+                            <Button x:Name="BtnUseSelection" Content="Start from selection" Click="OnUseSelectionClick" Style="{StaticResource ActionButton}" />
+                            <Button x:Name="BtnPickEnd" Content="Pick end point" Click="OnPickEndClick" Style="{StaticResource ActionButton}" />
+                        </WrapPanel>
+                        <WrapPanel>
+                            <Button x:Name="BtnUndo" Content="Undo last" Click="OnUndoClick" Style="{StaticResource ActionButton}" />
+                            <Button x:Name="BtnClear" Content="Clear all" Click="OnClearClick" Style="{StaticResource ActionButton}" />
+                        </WrapPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <Expander x:Name="ExpOptions" Header="Options" Margin="0,10,0,0">
+                    <StackPanel Margin="4,10,4,4">
+                        <WrapPanel>
+                            <TextBlock Text="Units" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#5A6672" />
+                            <ComboBox x:Name="CmbUnits" Width="140" SelectionChanged="OnUnitsChanged">
+                                <ComboBoxItem Content="Millimeters" />
+                                <ComboBoxItem Content="Meters" />
+                                <ComboBoxItem Content="Inches" />
+                                <ComboBoxItem Content="Feet &amp; inches" />
+                            </ComboBox>
+                        </WrapPanel>
+                        <CheckBox x:Name="ChkFlipNorth" Content="Flip true north rotation" Margin="0,12,0,0"
+                                  Checked="OnFlipNorthChanged" Unchecked="OnFlipNorthChanged" />
+                        <CheckBox x:Name="ChkTopMost" Content="Keep the pad above Revit" Margin="0,6,0,0"
+                                  Checked="OnTopMostChanged" Unchecked="OnTopMostChanged" />
+                    </StackPanel>
+                </Expander>
+
+                <Button x:Name="BtnDraw" Content="Draw segment   (Enter)" Height="42" Margin="0,12,0,0"
+                        FontSize="14" FontWeight="SemiBold" Background="#FFC96B" Click="OnDrawClick" />
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- BOTTOM: status -->
+        <Border Grid.Row="1" Grid.ColumnSpan="3" Margin="0,10,0,0" Padding="10,7" Background="#FFFFFF"
+                BorderBrush="#DDE3EA" BorderThickness="1" CornerRadius="4">
+            <TextBlock x:Name="TxtStatus" Text="Ready. Open a 3D view, pick a start point, choose a direction and press Enter."
+                       TextWrapping="Wrap" Foreground="#33404D" />
+        </Border>
+    </Grid>
+</Window>
